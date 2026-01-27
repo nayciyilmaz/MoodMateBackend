@@ -13,7 +13,6 @@ import java.util.List;
 @RequestMapping("/api/moods")
 @RequiredArgsConstructor
 public class MoodController {
-    //Giriş yapmış kullanıcının mood eklemesi ve moodlarını görmesi
 
     private final MoodService moodService;
 
@@ -25,5 +24,19 @@ public class MoodController {
     @GetMapping
     public ResponseEntity<List<MoodResponseDto>> getMyMoods() {
         return ResponseEntity.ok(moodService.getUserMoods());
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<MoodResponseDto> updateMood(
+            @PathVariable Long id,
+            @RequestBody @Valid MoodRequestDto dto
+    ) {
+        return ResponseEntity.ok(moodService.updateMood(id, dto));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteMood(@PathVariable Long id) {
+        moodService.deleteMood(id);
+        return ResponseEntity.noContent().build();
     }
 }

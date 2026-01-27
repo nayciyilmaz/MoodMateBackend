@@ -18,7 +18,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class MoodService {
-    //Kullanıcıyı tespit eder, moodları ona özel olarak kaydeder.
 
     private final MoodRepository moodRepository;
     private final UserRepository userRepository;
@@ -44,5 +43,42 @@ public class MoodService {
                 .stream()
                 .map(moodMapper::mapToDto)
                 .collect(Collectors.toList());
+    }
+
+    public MoodResponseDto updateMood(Long moodId, MoodRequestDto dto) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        Mood mood = moodRepository.findById(moodId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MOOD_NOT_FOUND));
+
+        if (!mood.getUser().getId().equals(user.getId())) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_ACCESS);
+        }
+
+        mood.setEmoji(dto.getEmoji());
+        mood.setScore(dto.getScore());
+        mood.setNote(dto.getNote());
+        if (dto.getEntryDate() != null) {
+            mood.setEntryDate(dto.getEntryDate());
+        }
+
+        return moodMapper.mapToDto(moodRepository.save(mood));
+    }
+
+    public void deleteMood(Long moodId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        Mood mood = moodRepository.findById(moodId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MOOD_NOT_FOUND));
+
+        if (!mood.getUser().getId().equals(user.getId())) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_ACCESS);
+        }
+
+        moodRepository.delete(mood);
     }
 }
