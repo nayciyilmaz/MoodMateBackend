@@ -2,29 +2,32 @@ package com.moodmate.backend.exception;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.LocaleResolver;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 @RestControllerAdvice
 @RequiredArgsConstructor
 public class GlobalExceptionHandler {
-    //Hatalar toplanır,filtrelenir ve Androide gönderilir.
 
     private final MessageSource messageSource;
+    private final LocaleResolver localeResolver;
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex) {
+    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex, HttpServletRequest request) {
+        Locale locale = localeResolver.resolveLocale(request);
         String message = messageSource.getMessage(
                 ex.getErrorCode().getMessageKey(),
                 null,
-                LocaleContextHolder.getLocale()
+                locale
         );
         ErrorResponse response = new ErrorResponse(
                 ex.getErrorCode().getCode(),
@@ -36,11 +39,12 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ErrorResponse> handleBadCredentialsException() {
+    public ResponseEntity<ErrorResponse> handleBadCredentialsException(HttpServletRequest request) {
+        Locale locale = localeResolver.resolveLocale(request);
         String message = messageSource.getMessage(
                 ErrorCode.INVALID_CREDENTIALS.getMessageKey(),
                 null,
-                LocaleContextHolder.getLocale()
+                locale
         );
         ErrorResponse response = new ErrorResponse(
                 ErrorCode.INVALID_CREDENTIALS.getCode(),
@@ -52,22 +56,29 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+    public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex, HttpServletRequest request) {
+        Locale locale = localeResolver.resolveLocale(request);
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
+            String errorMessage = messageSource.getMessage(
+                    error.getDefaultMessage(),
+                    null,
+                    error.getDefaultMessage(),
+                    locale
+            );
             errors.put(fieldName, errorMessage);
         });
         return ResponseEntity.badRequest().body(errors);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {
+    public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, HttpServletRequest request) {
+        Locale locale = localeResolver.resolveLocale(request);
         String message = messageSource.getMessage(
                 "error.server.unexpected",
                 null,
-                LocaleContextHolder.getLocale()
+                locale
         );
         ErrorResponse response = new ErrorResponse(
                 ErrorCode.INTERNAL_SERVER_ERROR.getCode(),
