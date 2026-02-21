@@ -35,3 +35,5 @@ build/
 ### Secrets ###
 application-secrets.properties
 src/main/resources/application-secrets.properties
+application-test-secrets.properties
+src/test/resources/application-test-secrets.properties
