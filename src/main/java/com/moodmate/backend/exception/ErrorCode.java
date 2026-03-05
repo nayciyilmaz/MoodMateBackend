@@ -14,6 +14,9 @@ public enum ErrorCode {
     NO_ADVICE_FOUND(1007, "error.advice.notFound", HttpStatus.NOT_FOUND),
     AI_SERVICE_ERROR(1008, "error.advice.aiServiceError", HttpStatus.INTERNAL_SERVER_ERROR),
     AI_RATE_LIMIT(1009, "error.advice.rateLimitExceeded", HttpStatus.TOO_MANY_REQUESTS),
+    CURRENT_PASSWORD_INCORRECT(1010, "error.password.currentIncorrect", HttpStatus.BAD_REQUEST),
+    NEW_PASSWORD_SAME_AS_CURRENT(1011, "error.password.sameAsCurrent", HttpStatus.BAD_REQUEST),
+    PASSWORDS_DO_NOT_MATCH(1012, "error.password.doNotMatch", HttpStatus.BAD_REQUEST),
     INTERNAL_SERVER_ERROR(9000, "error.server.internal", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;
