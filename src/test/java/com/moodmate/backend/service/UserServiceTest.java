@@ -1,5 +1,6 @@
 package com.moodmate.backend.service;
 
+import com.moodmate.backend.dto.ChangePasswordRequestDto;
 import com.moodmate.backend.dto.UserRequestDto;
 import com.moodmate.backend.dto.UserResponseDto;
 import com.moodmate.backend.entity.User;
@@ -13,6 +14,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
@@ -35,12 +39,19 @@ class UserServiceTest {
     @Mock
     private UserMapper mapper;
 
+    @Mock
+    private SecurityContext securityContext;
+
+    @Mock
+    private Authentication authentication;
+
     @InjectMocks
     private UserService userService;
 
     private User testUser;
     private UserRequestDto userRequestDto;
     private UserResponseDto userResponseDto;
+    private ChangePasswordRequestDto changePasswordRequestDto;
 
     @BeforeEach
     void setUp() {
@@ -66,6 +77,18 @@ class UserServiceTest {
                 .email("test@example.com")
                 .token("test-token")
                 .build();
+
+        changePasswordRequestDto = ChangePasswordRequestDto.builder()
+                .currentPassword("password123")
+                .newPassword("newPassword123")
+                .confirmPassword("newPassword123")
+                .build();
+    }
+
+    private void mockSecurityContext() {
+        SecurityContextHolder.setContext(securityContext);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getName()).thenReturn("test@example.com");
     }
 
     @Test
@@ -141,5 +164,75 @@ class UserServiceTest {
         verify(userRepository, times(1)).findByEmail(anyString());
         verify(passwordEncoder, times(1)).matches(anyString(), anyString());
         verify(jwtUtil, never()).generateToken(anyString());
+    }
+
+    @Test
+    void changePassword_Success() {
+        mockSecurityContext();
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("password123", "encodedPassword")).thenReturn(true);
+        when(passwordEncoder.matches("newPassword123", "encodedPassword")).thenReturn(false);
+        when(passwordEncoder.encode("newPassword123")).thenReturn("newEncodedPassword");
+
+        assertDoesNotThrow(() -> userService.changePassword(changePasswordRequestDto));
+
+        verify(userRepository, times(1)).save(any(User.class));
+    }
+
+    @Test
+    void changePassword_UserNotFound_ThrowsException() {
+        mockSecurityContext();
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                userService.changePassword(changePasswordRequestDto)
+        );
+
+        assertEquals(ErrorCode.USER_NOT_FOUND, exception.getErrorCode());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void changePassword_CurrentPasswordIncorrect_ThrowsException() {
+        mockSecurityContext();
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("password123", "encodedPassword")).thenReturn(false);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                userService.changePassword(changePasswordRequestDto)
+        );
+
+        assertEquals(ErrorCode.CURRENT_PASSWORD_INCORRECT, exception.getErrorCode());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void changePassword_PasswordsDoNotMatch_ThrowsException() {
+        mockSecurityContext();
+        changePasswordRequestDto.setConfirmPassword("differentPassword123");
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("password123", "encodedPassword")).thenReturn(true);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                userService.changePassword(changePasswordRequestDto)
+        );
+
+        assertEquals(ErrorCode.PASSWORDS_DO_NOT_MATCH, exception.getErrorCode());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void changePassword_NewPasswordSameAsCurrent_ThrowsException() {
+        mockSecurityContext();
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("password123", "encodedPassword")).thenReturn(true);
+        when(passwordEncoder.matches("newPassword123", "encodedPassword")).thenReturn(true);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                userService.changePassword(changePasswordRequestDto)
+        );
+
+        assertEquals(ErrorCode.NEW_PASSWORD_SAME_AS_CURRENT, exception.getErrorCode());
+        verify(userRepository, never()).save(any(User.class));
     }
 }

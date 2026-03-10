@@ -1,9 +1,12 @@
 package com.moodmate.backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moodmate.backend.dto.ChangePasswordRequestDto;
 import com.moodmate.backend.dto.LoginRequestDto;
 import com.moodmate.backend.dto.UserRequestDto;
 import com.moodmate.backend.dto.UserResponseDto;
+import com.moodmate.backend.exception.BusinessException;
+import com.moodmate.backend.exception.ErrorCode;
 import com.moodmate.backend.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,12 +15,14 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -37,6 +42,7 @@ class UserControllerTest {
     private UserRequestDto userRequestDto;
     private LoginRequestDto loginRequestDto;
     private UserResponseDto userResponseDto;
+    private ChangePasswordRequestDto changePasswordRequestDto;
 
     @BeforeEach
     void setUp() {
@@ -60,6 +66,12 @@ class UserControllerTest {
                 .token("test-token")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
+                .build();
+
+        changePasswordRequestDto = ChangePasswordRequestDto.builder()
+                .currentPassword("password123")
+                .newPassword("newPassword123")
+                .confirmPassword("newPassword123")
                 .build();
     }
 
@@ -128,5 +140,112 @@ class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequestDto)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void changePassword_Success() throws Exception {
+        doNothing().when(userService).changePassword(any(ChangePasswordRequestDto.class));
+
+        mockMvc.perform(put("/api/user/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(changePasswordRequestDto)))
+                .andExpect(status().isOk());
+
+        verify(userService, times(1)).changePassword(any(ChangePasswordRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void changePassword_EmptyCurrentPassword_ReturnsBadRequest() throws Exception {
+        changePasswordRequestDto.setCurrentPassword("");
+
+        mockMvc.perform(put("/api/user/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(changePasswordRequestDto)))
+                .andExpect(status().isBadRequest());
+
+        verify(userService, never()).changePassword(any(ChangePasswordRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void changePassword_EmptyNewPassword_ReturnsBadRequest() throws Exception {
+        changePasswordRequestDto.setNewPassword("");
+
+        mockMvc.perform(put("/api/user/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(changePasswordRequestDto)))
+                .andExpect(status().isBadRequest());
+
+        verify(userService, never()).changePassword(any(ChangePasswordRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void changePassword_EmptyConfirmPassword_ReturnsBadRequest() throws Exception {
+        changePasswordRequestDto.setConfirmPassword("");
+
+        mockMvc.perform(put("/api/user/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(changePasswordRequestDto)))
+                .andExpect(status().isBadRequest());
+
+        verify(userService, never()).changePassword(any(ChangePasswordRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void changePassword_NewPasswordTooShort_ReturnsBadRequest() throws Exception {
+        changePasswordRequestDto.setNewPassword("123");
+
+        mockMvc.perform(put("/api/user/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(changePasswordRequestDto)))
+                .andExpect(status().isBadRequest());
+
+        verify(userService, never()).changePassword(any(ChangePasswordRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void changePassword_CurrentPasswordIncorrect_ReturnsBadRequest() throws Exception {
+        doThrow(new BusinessException(ErrorCode.CURRENT_PASSWORD_INCORRECT))
+                .when(userService).changePassword(any(ChangePasswordRequestDto.class));
+
+        mockMvc.perform(put("/api/user/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(changePasswordRequestDto)))
+                .andExpect(status().isBadRequest());
+
+        verify(userService, times(1)).changePassword(any(ChangePasswordRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void changePassword_PasswordsDoNotMatch_ReturnsBadRequest() throws Exception {
+        doThrow(new BusinessException(ErrorCode.PASSWORDS_DO_NOT_MATCH))
+                .when(userService).changePassword(any(ChangePasswordRequestDto.class));
+
+        mockMvc.perform(put("/api/user/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(changePasswordRequestDto)))
+                .andExpect(status().isBadRequest());
+
+        verify(userService, times(1)).changePassword(any(ChangePasswordRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void changePassword_NewPasswordSameAsCurrent_ReturnsBadRequest() throws Exception {
+        doThrow(new BusinessException(ErrorCode.NEW_PASSWORD_SAME_AS_CURRENT))
+                .when(userService).changePassword(any(ChangePasswordRequestDto.class));
+
+        mockMvc.perform(put("/api/user/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(changePasswordRequestDto)))
+                .andExpect(status().isBadRequest());
+
+        verify(userService, times(1)).changePassword(any(ChangePasswordRequestDto.class));
     }
 }
