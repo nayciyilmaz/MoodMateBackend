@@ -10,6 +10,8 @@ import com.moodmate.backend.mapper.AdviceMapper;
 import com.moodmate.backend.repository.AdviceRepository;
 import com.moodmate.backend.repository.MoodRepository;
 import com.moodmate.backend.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -18,13 +20,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class AdviceService {
+
+    private static final Logger log = LoggerFactory.getLogger(AdviceService.class);
 
     private final UserRepository userRepository;
     private final MoodRepository moodRepository;
@@ -52,6 +55,8 @@ public class AdviceService {
 
     public AdviceResponseDto generateAdvice() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        log.info("Tavsiye oluşturma isteği: email={}", email);
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
@@ -63,8 +68,11 @@ public class AdviceService {
                 .collect(Collectors.toList());
 
         if (lastThreeDaysMoods.isEmpty()) {
+            log.warn("Tavsiye oluşturulamadı, son 3 günde mood kaydı yok: email={}", email);
             throw new BusinessException(ErrorCode.NO_MOOD_DATA);
         }
+
+        log.info("Gemini API isteği gönderiliyor: email={}, moodCount={}", email, lastThreeDaysMoods.size());
 
         String prompt = buildPrompt(lastThreeDaysMoods);
         String adviceText = callGeminiApi(prompt);
@@ -75,16 +83,22 @@ public class AdviceService {
                 .build();
 
         Advice savedAdvice = adviceRepository.save(advice);
+        log.info("Tavsiye oluşturuldu: email={}, adviceId={}", email, savedAdvice.getId());
+
         return adviceMapper.mapToDto(savedAdvice);
     }
 
     public AdviceResponseDto getLatestAdvice() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        log.info("Son tavsiye isteği: email={}", email);
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Advice advice = adviceRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.NO_ADVICE_FOUND));
+
+        log.info("Son tavsiye döndürüldü: email={}, adviceId={}", email, advice.getId());
 
         return adviceMapper.mapToDto(advice);
     }
@@ -134,23 +148,22 @@ public class AdviceService {
         HttpEntity<Map<String, Object>> httpEntity = new HttpEntity<>(requestBody, headers);
 
         try {
-            Map<String, Object> response = restTemplate.postForObject(
-                    url,
-                    httpEntity,
-                    Map.class
-            );
+            Map<String, Object> response = restTemplate.postForObject(url, httpEntity, Map.class);
 
             if (response == null) {
+                log.error("Gemini API boş response döndürdü");
                 throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
             }
 
             Object candidatesObj = response.get("candidates");
             if (candidatesObj == null) {
+                log.error("Gemini API response'unda candidates alanı yok");
                 throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
             }
 
             List<Map<String, Object>> candidates = (List<Map<String, Object>>) candidatesObj;
             if (candidates.isEmpty()) {
+                log.error("Gemini API candidates listesi boş");
                 throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
             }
 
@@ -158,17 +171,20 @@ public class AdviceService {
             Map<String, Object> candidateContent = (Map<String, Object>) firstCandidate.get("content");
 
             if (candidateContent == null) {
+                log.error("Gemini API candidate content boş");
                 throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
             }
 
             List<Map<String, Object>> responseParts = (List<Map<String, Object>>) candidateContent.get("parts");
 
             if (responseParts == null || responseParts.isEmpty()) {
+                log.error("Gemini API response parts boş");
                 throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
             }
 
             String text = (String) responseParts.get(0).get("text");
             if (text == null || text.isBlank()) {
+                log.error("Gemini API response text boş");
                 throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
             }
 
@@ -177,12 +193,13 @@ public class AdviceService {
         } catch (BusinessException e) {
             throw e;
         } catch (HttpClientErrorException.TooManyRequests e) {
+            log.warn("Gemini API rate limit aşıldı");
             throw new BusinessException(ErrorCode.AI_RATE_LIMIT);
         } catch (HttpClientErrorException e) {
-            System.err.println("Gemini API HTTP Hatası: " + e.getStatusCode() + " - " + e.getMessage());
+            log.error("Gemini API HTTP hatası: status={}, message={}", e.getStatusCode(), e.getMessage());
             throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
         } catch (Exception e) {
-            System.err.println("Gemini API Hatası: " + e.getMessage());
+            log.error("Gemini API beklenmedik hata: message={}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
         }
     }
