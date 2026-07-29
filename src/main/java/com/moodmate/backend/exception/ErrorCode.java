@@ -17,6 +17,8 @@ public enum ErrorCode {
     CURRENT_PASSWORD_INCORRECT(1010, "error.password.currentIncorrect", HttpStatus.BAD_REQUEST),
     NEW_PASSWORD_SAME_AS_CURRENT(1011, "error.password.sameAsCurrent", HttpStatus.BAD_REQUEST),
     PASSWORDS_DO_NOT_MATCH(1012, "error.password.doNotMatch", HttpStatus.BAD_REQUEST),
+    NEW_NAME_SAME_AS_CURRENT(1013, "error.name.sameAsCurrent", HttpStatus.BAD_REQUEST),
+    NEW_EMAIL_SAME_AS_CURRENT(1014, "error.email.sameAsCurrent", HttpStatus.BAD_REQUEST),
     INTERNAL_SERVER_ERROR(9000, "error.server.internal", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;

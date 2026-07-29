@@ -1,7 +1,10 @@
 package com.moodmate.backend.controller;
 
 import com.moodmate.backend.dto.ChangePasswordRequestDto;
+import com.moodmate.backend.dto.EmailUpdateResponseDto;
 import com.moodmate.backend.dto.LoginRequestDto;
+import com.moodmate.backend.dto.UpdateEmailRequestDto;
+import com.moodmate.backend.dto.UpdateNameRequestDto;
 import com.moodmate.backend.dto.UserRequestDto;
 import com.moodmate.backend.dto.UserResponseDto;
 import com.moodmate.backend.service.UserService;
@@ -34,5 +37,16 @@ public class UserController {
     public ResponseEntity<Void> changePassword(@RequestBody @Valid ChangePasswordRequestDto request) {
         userService.changePassword(request);
         return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/api/user/update-name")
+    public ResponseEntity<Void> updateName(@RequestBody @Valid UpdateNameRequestDto request) {
+        userService.updateName(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/api/user/update-email")
+    public ResponseEntity<EmailUpdateResponseDto> updateEmail(@RequestBody @Valid UpdateEmailRequestDto request) {
+        return ResponseEntity.ok(userService.updateEmail(request));
     }
 }

@@ -12,22 +12,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class UserRequestDto {
-
-    @NotBlank(message = "{validation.firstName.notBlank}")
-    @Size(min = 3, message = "{validation.firstName.minLength}")
-    private String first_name;
-
-    @NotBlank(message = "{validation.lastName.notBlank}")
-    @Size(min = 3, message = "{validation.lastName.minLength}")
-    private String last_name;
+public class UpdateEmailRequestDto {
 
     @NotBlank(message = "{validation.email.notBlank}")
     @Size(min = 3, message = "{validation.email.minLength}")
     @Email(message = "{validation.email.invalid}")
     private String email;
-
-    @NotBlank(message = "{validation.password.notBlank}")
-    @Size(min = 6, message = "{validation.password.minLength}")
-    private String password;
 }
