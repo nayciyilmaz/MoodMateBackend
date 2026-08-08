@@ -78,6 +78,7 @@ public class MoodService {
         mood.setEmoji(dto.getEmoji());
         mood.setScore(dto.getScore());
         mood.setNote(dto.getNote());
+        mood.setFavorite(dto.isFavorite());
         if (dto.getEntryDate() != null) {
             mood.setEntryDate(dto.getEntryDate());
         }

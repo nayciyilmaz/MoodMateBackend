@@ -35,6 +35,8 @@ public class Mood {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    private Boolean favorite;
+
     @PrePersist
     public void prePersist() {
         var now = LocalDateTime.now();

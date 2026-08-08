@@ -16,5 +16,6 @@ public interface MoodMapper {
     @Mapping(target = "createdAt", ignore = true)
     Mood mapToEntity(MoodRequestDto dto);
 
+    @Mapping(target = "favorite", expression = "java(Boolean.TRUE.equals(mood.getFavorite()))")
     MoodResponseDto mapToDto(Mood mood);
 }

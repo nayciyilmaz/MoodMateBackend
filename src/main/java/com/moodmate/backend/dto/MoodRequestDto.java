@@ -24,4 +24,6 @@ public class MoodRequestDto {
     private String note;
 
     private LocalDateTime entryDate;
+
+    private boolean favorite;
 }
