@@ -1,6 +1,8 @@
 package com.moodmate.backend.controller;
 
 import com.moodmate.backend.dto.AdviceResponseDto;
+import com.moodmate.backend.exception.BusinessException;
+import com.moodmate.backend.exception.ErrorCode;
 import com.moodmate.backend.service.AdviceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,5 +60,45 @@ class AdviceControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.advice").value("Test advice"));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void generateAdvice_NoMoodData_ReturnsBadRequest() throws Exception {
+        when(adviceService.generateAdvice())
+                .thenThrow(new BusinessException(ErrorCode.NO_MOOD_DATA));
+
+        mockMvc.perform(post("/api/advice/generate"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void generateAdvice_AiServiceError_ReturnsInternalServerError() throws Exception {
+        when(adviceService.generateAdvice())
+                .thenThrow(new BusinessException(ErrorCode.AI_SERVICE_ERROR));
+
+        mockMvc.perform(post("/api/advice/generate"))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void generateAdvice_RateLimitExceeded_ReturnsTooManyRequests() throws Exception {
+        when(adviceService.generateAdvice())
+                .thenThrow(new BusinessException(ErrorCode.AI_RATE_LIMIT));
+
+        mockMvc.perform(post("/api/advice/generate"))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void getLatestAdvice_NotFound_ReturnsNotFound() throws Exception {
+        when(adviceService.getLatestAdvice())
+                .thenThrow(new BusinessException(ErrorCode.NO_ADVICE_FOUND));
+
+        mockMvc.perform(get("/api/advice/latest"))
+                .andExpect(status().isNotFound());
     }
 }

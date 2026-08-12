@@ -3,6 +3,8 @@ package com.moodmate.backend.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodmate.backend.dto.MoodRequestDto;
 import com.moodmate.backend.dto.MoodResponseDto;
+import com.moodmate.backend.exception.BusinessException;
+import com.moodmate.backend.exception.ErrorCode;
 import com.moodmate.backend.service.MoodService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -106,5 +108,88 @@ class MoodControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(moodService, times(1)).deleteMood(1L);
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void addMood_EmptyEmoji_ReturnsBadRequest() throws Exception {
+        moodRequestDto.setEmoji("");
+
+        mockMvc.perform(post("/api/moods")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(moodRequestDto)))
+                .andExpect(status().isBadRequest());
+
+        verify(moodService, never()).createMood(any(MoodRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void addMood_NullScore_ReturnsBadRequest() throws Exception {
+        moodRequestDto.setScore(null);
+
+        mockMvc.perform(post("/api/moods")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(moodRequestDto)))
+                .andExpect(status().isBadRequest());
+
+        verify(moodService, never()).createMood(any(MoodRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void addMood_EmptyNote_ReturnsBadRequest() throws Exception {
+        moodRequestDto.setNote("");
+
+        mockMvc.perform(post("/api/moods")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(moodRequestDto)))
+                .andExpect(status().isBadRequest());
+
+        verify(moodService, never()).createMood(any(MoodRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void updateMood_NotFound_ReturnsNotFound() throws Exception {
+        when(moodService.updateMood(anyLong(), any(MoodRequestDto.class)))
+                .thenThrow(new BusinessException(ErrorCode.MOOD_NOT_FOUND));
+
+        mockMvc.perform(put("/api/moods/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(moodRequestDto)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void updateMood_Unauthorized_ReturnsForbidden() throws Exception {
+        when(moodService.updateMood(anyLong(), any(MoodRequestDto.class)))
+                .thenThrow(new BusinessException(ErrorCode.UNAUTHORIZED_ACCESS));
+
+        mockMvc.perform(put("/api/moods/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(moodRequestDto)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void deleteMood_NotFound_ReturnsNotFound() throws Exception {
+        doThrow(new BusinessException(ErrorCode.MOOD_NOT_FOUND))
+                .when(moodService).deleteMood(anyLong());
+
+        mockMvc.perform(delete("/api/moods/1"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void deleteMood_Unauthorized_ReturnsForbidden() throws Exception {
+        doThrow(new BusinessException(ErrorCode.UNAUTHORIZED_ACCESS))
+                .when(moodService).deleteMood(anyLong());
+
+        mockMvc.perform(delete("/api/moods/1"))
+                .andExpect(status().isForbidden());
     }
 }
