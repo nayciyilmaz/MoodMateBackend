@@ -1,6 +1,8 @@
 package com.moodmate.backend.service;
 
 import com.moodmate.backend.dto.ChangePasswordRequestDto;
+import com.moodmate.backend.dto.UpdateEmailRequestDto;
+import com.moodmate.backend.dto.UpdateNameRequestDto;
 import com.moodmate.backend.dto.UserRequestDto;
 import com.moodmate.backend.dto.UserResponseDto;
 import com.moodmate.backend.entity.User;
@@ -52,6 +54,8 @@ class UserServiceTest {
     private UserRequestDto userRequestDto;
     private UserResponseDto userResponseDto;
     private ChangePasswordRequestDto changePasswordRequestDto;
+    private UpdateNameRequestDto updateNameRequestDto;
+    private UpdateEmailRequestDto updateEmailRequestDto;
 
     @BeforeEach
     void setUp() {
@@ -82,6 +86,15 @@ class UserServiceTest {
                 .currentPassword("password123")
                 .newPassword("newPassword123")
                 .confirmPassword("newPassword123")
+                .build();
+
+        updateNameRequestDto = UpdateNameRequestDto.builder()
+                .first_name("Ahmet")
+                .last_name("Yılmaz")
+                .build();
+
+        updateEmailRequestDto = UpdateEmailRequestDto.builder()
+                .email("new@example.com")
                 .build();
     }
 
@@ -233,6 +246,105 @@ class UserServiceTest {
         );
 
         assertEquals(ErrorCode.NEW_PASSWORD_SAME_AS_CURRENT, exception.getErrorCode());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updateName_Success() {
+        mockSecurityContext();
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(userRepository.save(any(User.class))).thenReturn(testUser);
+
+        assertDoesNotThrow(() -> userService.updateName(updateNameRequestDto));
+
+        verify(userRepository, times(1)).save(any(User.class));
+    }
+
+    @Test
+    void updateName_UserNotFound_ThrowsException() {
+        mockSecurityContext();
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                userService.updateName(updateNameRequestDto)
+        );
+
+        assertEquals(ErrorCode.USER_NOT_FOUND, exception.getErrorCode());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updateName_SameAsCurrent_ThrowsException() {
+        mockSecurityContext();
+        updateNameRequestDto.setFirst_name("Yılmaz");
+        updateNameRequestDto.setLast_name("Naycı");
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                userService.updateName(updateNameRequestDto)
+        );
+
+        assertEquals(ErrorCode.NEW_NAME_SAME_AS_CURRENT, exception.getErrorCode());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updateEmail_Success() {
+        mockSecurityContext();
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenReturn(testUser);
+        when(jwtUtil.generateToken(anyString())).thenReturn("new-token");
+
+        var result = userService.updateEmail(updateEmailRequestDto);
+
+        assertNotNull(result);
+        assertEquals("new-token", result.getToken());
+        verify(userRepository, times(1)).save(any(User.class));
+    }
+
+    @Test
+    void updateEmail_UserNotFound_ThrowsException() {
+        mockSecurityContext();
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                userService.updateEmail(updateEmailRequestDto)
+        );
+
+        assertEquals(ErrorCode.USER_NOT_FOUND, exception.getErrorCode());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updateEmail_SameAsCurrent_ThrowsException() {
+        mockSecurityContext();
+        updateEmailRequestDto.setEmail("test@example.com");
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                userService.updateEmail(updateEmailRequestDto)
+        );
+
+        assertEquals(ErrorCode.NEW_EMAIL_SAME_AS_CURRENT, exception.getErrorCode());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updateEmail_EmailAlreadyExists_ThrowsException() {
+        mockSecurityContext();
+        User otherUser = User.builder()
+                .id(2L)
+                .email("new@example.com")
+                .build();
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.of(otherUser));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                userService.updateEmail(updateEmailRequestDto)
+        );
+
+        assertEquals(ErrorCode.EMAIL_ALREADY_EXISTS, exception.getErrorCode());
         verify(userRepository, never()).save(any(User.class));
     }
 }

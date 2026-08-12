@@ -2,7 +2,10 @@ package com.moodmate.backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodmate.backend.dto.ChangePasswordRequestDto;
+import com.moodmate.backend.dto.EmailUpdateResponseDto;
 import com.moodmate.backend.dto.LoginRequestDto;
+import com.moodmate.backend.dto.UpdateEmailRequestDto;
+import com.moodmate.backend.dto.UpdateNameRequestDto;
 import com.moodmate.backend.dto.UserRequestDto;
 import com.moodmate.backend.dto.UserResponseDto;
 import com.moodmate.backend.exception.BusinessException;
@@ -43,6 +46,9 @@ class UserControllerTest {
     private LoginRequestDto loginRequestDto;
     private UserResponseDto userResponseDto;
     private ChangePasswordRequestDto changePasswordRequestDto;
+    private UpdateNameRequestDto updateNameRequestDto;
+    private UpdateEmailRequestDto updateEmailRequestDto;
+    private EmailUpdateResponseDto emailUpdateResponseDto;
 
     @BeforeEach
     void setUp() {
@@ -72,6 +78,20 @@ class UserControllerTest {
                 .currentPassword("password123")
                 .newPassword("newPassword123")
                 .confirmPassword("newPassword123")
+                .build();
+
+        updateNameRequestDto = UpdateNameRequestDto.builder()
+                .first_name("Ahmet")
+                .last_name("Yılmaz")
+                .build();
+
+        updateEmailRequestDto = UpdateEmailRequestDto.builder()
+                .email("new@example.com")
+                .build();
+
+        emailUpdateResponseDto = EmailUpdateResponseDto.builder()
+                .email("new@example.com")
+                .token("new-token")
                 .build();
     }
 
@@ -247,5 +267,83 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(userService, times(1)).changePassword(any(ChangePasswordRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void updateName_Success() throws Exception {
+        doNothing().when(userService).updateName(any(UpdateNameRequestDto.class));
+
+        mockMvc.perform(put("/api/user/update-name")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateNameRequestDto)))
+                .andExpect(status().isOk());
+
+        verify(userService, times(1)).updateName(any(UpdateNameRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void updateName_EmptyFirstName_ReturnsBadRequest() throws Exception {
+        updateNameRequestDto.setFirst_name("");
+
+        mockMvc.perform(put("/api/user/update-name")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateNameRequestDto)))
+                .andExpect(status().isBadRequest());
+
+        verify(userService, never()).updateName(any(UpdateNameRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void updateName_SameAsCurrent_ReturnsBadRequest() throws Exception {
+        doThrow(new BusinessException(ErrorCode.NEW_NAME_SAME_AS_CURRENT))
+                .when(userService).updateName(any(UpdateNameRequestDto.class));
+
+        mockMvc.perform(put("/api/user/update-name")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateNameRequestDto)))
+                .andExpect(status().isBadRequest());
+
+        verify(userService, times(1)).updateName(any(UpdateNameRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void updateEmail_Success() throws Exception {
+        when(userService.updateEmail(any(UpdateEmailRequestDto.class))).thenReturn(emailUpdateResponseDto);
+
+        mockMvc.perform(put("/api/user/update-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateEmailRequestDto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("new@example.com"))
+                .andExpect(jsonPath("$.token").value("new-token"));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void updateEmail_InvalidEmail_ReturnsBadRequest() throws Exception {
+        updateEmailRequestDto.setEmail("invalid-email");
+
+        mockMvc.perform(put("/api/user/update-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateEmailRequestDto)))
+                .andExpect(status().isBadRequest());
+
+        verify(userService, never()).updateEmail(any(UpdateEmailRequestDto.class));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void updateEmail_AlreadyExists_ReturnsConflict() throws Exception {
+        when(userService.updateEmail(any(UpdateEmailRequestDto.class)))
+                .thenThrow(new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS));
+
+        mockMvc.perform(put("/api/user/update-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateEmailRequestDto)))
+                .andExpect(status().isConflict());
     }
 }

@@ -250,4 +250,124 @@ class AdviceServiceTest {
         assertEquals(ErrorCode.AI_RATE_LIMIT, exception.getErrorCode());
         verify(adviceRepository, never()).save(any(Advice.class));
     }
+
+    @Test
+    void generateAdvice_ApiReturnsNoCandidates_ThrowsException() {
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(moodRepository.findAllByUserIdOrderByEntryDateDesc(anyLong()))
+                .thenReturn(Arrays.asList(recentMood));
+        when(restTemplate.postForObject(anyString(), any(), eq(Map.class)))
+                .thenReturn(Map.of());
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                adviceService.generateAdvice()
+        );
+
+        assertEquals(ErrorCode.AI_SERVICE_ERROR, exception.getErrorCode());
+        verify(adviceRepository, never()).save(any(Advice.class));
+    }
+
+    @Test
+    void generateAdvice_ApiReturnsEmptyCandidates_ThrowsException() {
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(moodRepository.findAllByUserIdOrderByEntryDateDesc(anyLong()))
+                .thenReturn(Arrays.asList(recentMood));
+        when(restTemplate.postForObject(anyString(), any(), eq(Map.class)))
+                .thenReturn(Map.of("candidates", List.of()));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                adviceService.generateAdvice()
+        );
+
+        assertEquals(ErrorCode.AI_SERVICE_ERROR, exception.getErrorCode());
+        verify(adviceRepository, never()).save(any(Advice.class));
+    }
+
+    @Test
+    void generateAdvice_ApiReturnsNoContent_ThrowsException() {
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(moodRepository.findAllByUserIdOrderByEntryDateDesc(anyLong()))
+                .thenReturn(Arrays.asList(recentMood));
+        Map<String, Object> candidate = new java.util.HashMap<>();
+        candidate.put("content", null);
+        when(restTemplate.postForObject(anyString(), any(), eq(Map.class)))
+                .thenReturn(Map.of("candidates", List.of(candidate)));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                adviceService.generateAdvice()
+        );
+
+        assertEquals(ErrorCode.AI_SERVICE_ERROR, exception.getErrorCode());
+        verify(adviceRepository, never()).save(any(Advice.class));
+    }
+
+    @Test
+    void generateAdvice_ApiReturnsEmptyParts_ThrowsException() {
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(moodRepository.findAllByUserIdOrderByEntryDateDesc(anyLong()))
+                .thenReturn(Arrays.asList(recentMood));
+        Map<String, Object> content = Map.of("parts", List.of());
+        Map<String, Object> candidate = Map.of("content", content);
+        when(restTemplate.postForObject(anyString(), any(), eq(Map.class)))
+                .thenReturn(Map.of("candidates", List.of(candidate)));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                adviceService.generateAdvice()
+        );
+
+        assertEquals(ErrorCode.AI_SERVICE_ERROR, exception.getErrorCode());
+        verify(adviceRepository, never()).save(any(Advice.class));
+    }
+
+    @Test
+    void generateAdvice_ApiReturnsBlankText_ThrowsException() {
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(moodRepository.findAllByUserIdOrderByEntryDateDesc(anyLong()))
+                .thenReturn(Arrays.asList(recentMood));
+        Map<String, Object> part = Map.of("text", "");
+        Map<String, Object> content = Map.of("parts", List.of(part));
+        Map<String, Object> candidate = Map.of("content", content);
+        when(restTemplate.postForObject(anyString(), any(), eq(Map.class)))
+                .thenReturn(Map.of("candidates", List.of(candidate)));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                adviceService.generateAdvice()
+        );
+
+        assertEquals(ErrorCode.AI_SERVICE_ERROR, exception.getErrorCode());
+        verify(adviceRepository, never()).save(any(Advice.class));
+    }
+
+    @Test
+    void generateAdvice_ApiHttpClientError_ThrowsException() {
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(moodRepository.findAllByUserIdOrderByEntryDateDesc(anyLong()))
+                .thenReturn(Arrays.asList(recentMood));
+        when(restTemplate.postForObject(anyString(), any(), eq(Map.class)))
+                .thenThrow(HttpClientErrorException.create(
+                        org.springframework.http.HttpStatus.BAD_REQUEST, "Bad Request", null, null, null));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                adviceService.generateAdvice()
+        );
+
+        assertEquals(ErrorCode.AI_SERVICE_ERROR, exception.getErrorCode());
+        verify(adviceRepository, never()).save(any(Advice.class));
+    }
+
+    @Test
+    void generateAdvice_UnexpectedException_ThrowsException() {
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(moodRepository.findAllByUserIdOrderByEntryDateDesc(anyLong()))
+                .thenReturn(Arrays.asList(recentMood));
+        when(restTemplate.postForObject(anyString(), any(), eq(Map.class)))
+                .thenThrow(new RuntimeException("network error"));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                adviceService.generateAdvice()
+        );
+
+        assertEquals(ErrorCode.AI_SERVICE_ERROR, exception.getErrorCode());
+        verify(adviceRepository, never()).save(any(Advice.class));
+    }
 }
