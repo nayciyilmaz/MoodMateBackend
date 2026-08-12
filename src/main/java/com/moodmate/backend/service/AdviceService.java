@@ -147,8 +147,10 @@ public class AdviceService {
 
         HttpEntity<Map<String, Object>> httpEntity = new HttpEntity<>(requestBody, headers);
 
+        long startTime = System.currentTimeMillis();
         try {
             Map<String, Object> response = restTemplate.postForObject(url, httpEntity, Map.class);
+            log.info("Gemini API yanıt süresi: durationMs={}", System.currentTimeMillis() - startTime);
 
             if (response == null) {
                 log.error("Gemini API boş response döndürdü");
@@ -199,7 +201,7 @@ public class AdviceService {
             log.error("Gemini API HTTP hatası: status={}, message={}", e.getStatusCode(), e.getMessage());
             throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
         } catch (Exception e) {
-            log.error("Gemini API beklenmedik hata: message={}", e.getMessage(), e);
+            log.error("Gemini API beklenmedik hata: durationMs={}, message={}", System.currentTimeMillis() - startTime, e.getMessage(), e);
             throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
         }
     }

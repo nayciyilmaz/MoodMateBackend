@@ -2,6 +2,9 @@ package com.moodmate.backend.security;
 
 import com.moodmate.backend.service.CustomUserDetailsService;
 import com.moodmate.backend.service.JwtUtil;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,6 +43,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             jwt = authorizationHeader.substring(7);
             try {
                 email = jwtUtil.extractEmail(jwt);
+            } catch (ExpiredJwtException e) {
+                log.warn("JWT token süresi dolmuş: path={}", request.getRequestURI());
+            } catch (MalformedJwtException e) {
+                log.warn("JWT token formatı bozuk: path={}", request.getRequestURI());
+            } catch (SignatureException e) {
+                log.warn("JWT token imzası geçersiz: path={}", request.getRequestURI());
             } catch (Exception e) {
                 log.warn("Geçersiz JWT token: path={}, message={}", request.getRequestURI(), e.getMessage());
             }

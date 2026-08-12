@@ -4,6 +4,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import java.security.Key;
@@ -14,7 +16,8 @@ import java.util.function.Function;
 
 @Component
 public class JwtUtil {
-    //JWT token üretme doğrulama ve okuma
+
+    private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
 
     @Value("${jwt.secret}")
     private String secret;
@@ -53,7 +56,9 @@ public class JwtUtil {
 
     public String generateToken(String email) {
         Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, email);
+        String token = createToken(claims, email);
+        log.info("JWT token üretildi: email={}", email);
+        return token;
     }
 
     private String createToken(Map<String, Object> claims, String subject) {

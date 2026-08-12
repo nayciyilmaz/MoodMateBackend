@@ -1,7 +1,10 @@
 package com.moodmate.backend.security;
 
 import com.moodmate.backend.service.CustomUserDetailsService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,6 +24,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomUserDetailsService userDetailsService;
@@ -58,6 +63,16 @@ public class SecurityConfig {
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            log.warn("Kimliksiz erişim reddedildi: path={}, message={}", request.getRequestURI(), authException.getMessage());
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            log.warn("Yetkisiz erişim reddedildi: path={}, message={}", request.getRequestURI(), accessDeniedException.getMessage());
+                            response.sendError(HttpServletResponse.SC_FORBIDDEN);
+                        })
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
