@@ -22,7 +22,7 @@ A Spring Boot REST API for the MoodMate mood tracking application. Provides JWT-
 - **MapStruct** - DTO-Entity mapping with Lombok integration
 - **Bean Validation** - Jakarta validation with i18n message keys
 - **SpringDoc OpenAPI** - Swagger UI documentation
-- **Google Gemini API** - AI advice generation
+- **Google Gemini API** - AI advice generation via gemini-3-flash-preview
 
 ## Architecture
 
@@ -47,7 +47,7 @@ A Spring Boot REST API for the MoodMate mood tracking application. Provides JWT-
 - **Mockito** - Service layer mocking
 - **MockMvc** - Controller integration tests with @WithMockUser
 - **H2 Database** - In-memory test database
-- **~40+ Unit Tests** covering services, controllers, and repositories
+- **89 Unit & Integration Tests** covering services, controllers, and repositories
 
 ## Multi-Language Support
 
